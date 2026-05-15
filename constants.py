@@ -1,0 +1,6 @@
+# 文案长度限制
+MIN_CONTENT_LENGTH: int = 10
+MAX_CONTENT_LENGTH: int = 500
+
+# 模型配置
+MODEL_TIMEOUT: int = 30
