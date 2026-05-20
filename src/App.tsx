@@ -3,8 +3,9 @@ import { Header } from './components/Header';
 import { CopyInputForm } from './components/CopyInputForm';
 import { ReportDashboard } from './components/ReportDashboard';
 import { BatchResultList } from './components/BatchResultList';
+import { HistoryPanel } from './components/HistoryPanel';
 import { evaluateCopy } from './api/evaluation';
-import type { EvaluationResult, VideoCopyInput } from './types';
+import type { EvaluationResult, VideoCopyInput, HistoryItem } from './types';
 
 interface BatchResult {
   input: VideoCopyInput;
@@ -16,6 +17,7 @@ function App() {
   const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isBatchMode, setIsBatchMode] = useState(false);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
   const handleSubmit = async (data: VideoCopyInput) => {
     setIsLoading(true);
@@ -24,6 +26,16 @@ function App() {
       const evaluationResult = await evaluateCopy(data);
       setResult(evaluationResult);
       setBatchResults([]);
+      const newHistoryItem: HistoryItem = {
+        id: Date.now().toString(),
+        content: data.content,
+        platform: data.platform,
+        category: data.category,
+        score: evaluationResult.overallScore,
+        createdAt: new Date().toISOString(),
+        result: evaluationResult,
+      };
+      setHistory(prev => [newHistoryItem, ...prev]);
     } catch (error) {
       console.error('Evaluation error:', error);
     } finally {
@@ -57,6 +69,16 @@ function App() {
     setIsBatchMode(false);
   };
 
+  const handleSelectHistory = (item: HistoryItem) => {
+    setResult(item.result);
+    setBatchResults([]);
+    setIsBatchMode(false);
+  };
+
+  const handleDeleteHistory = (id: string) => {
+    setHistory(prev => prev.filter(item => item.id !== id));
+  };
+
   const handleSelectResult = (selectedResult: EvaluationResult) => {
     setResult(selectedResult);
   };
@@ -64,7 +86,7 @@ function App() {
   return (
     <div className="min-h-screen">
       <Header />
-      
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1 space-y-6">
@@ -73,13 +95,13 @@ function App() {
                 <h2 className="text-xl font-bold text-gray-900 mb-2">开始评估</h2>
                 <p className="text-sm text-gray-500">输入您的短视频文案，获取智能评估报告</p>
               </div>
-              
-              <CopyInputForm 
-                onSubmit={handleSubmit} 
-                onBatchSubmit={handleBatchSubmit} 
-                isLoading={isLoading} 
+
+              <CopyInputForm
+                onSubmit={handleSubmit}
+                onBatchSubmit={handleBatchSubmit}
+                isLoading={isLoading}
               />
-              
+
               {(result || batchResults.length > 0) && (
                 <button
                   onClick={handleNewEvaluation}
@@ -125,6 +147,12 @@ function App() {
                 </div>
               </div>
             )}
+
+            <HistoryPanel
+              history={history}
+              onSelect={handleSelectHistory}
+              onDelete={handleDeleteHistory}
+            />
           </div>
         </div>
       </main>
