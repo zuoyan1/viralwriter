@@ -2,18 +2,28 @@ import { useState } from 'react';
 import { Header } from './components/Header';
 import { CopyInputForm } from './components/CopyInputForm';
 import { ReportDashboard } from './components/ReportDashboard';
+import { BatchResultList } from './components/BatchResultList';
 import { evaluateCopy } from './api/evaluation';
 import type { EvaluationResult, VideoCopyInput } from './types';
 
+interface BatchResult {
+  input: VideoCopyInput;
+  result: EvaluationResult;
+}
+
 function App() {
   const [result, setResult] = useState<EvaluationResult | null>(null);
+  const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isBatchMode, setIsBatchMode] = useState(false);
 
   const handleSubmit = async (data: VideoCopyInput) => {
     setIsLoading(true);
+    setIsBatchMode(false);
     try {
       const evaluationResult = await evaluateCopy(data);
       setResult(evaluationResult);
+      setBatchResults([]);
     } catch (error) {
       console.error('Evaluation error:', error);
     } finally {
@@ -21,8 +31,34 @@ function App() {
     }
   };
 
+  const handleBatchSubmit = async (items: VideoCopyInput[]) => {
+    setIsLoading(true);
+    setIsBatchMode(true);
+    try {
+      const results: BatchResult[] = [];
+      for (const item of items) {
+        const evaluationResult = await evaluateCopy(item);
+        results.push({ input: item, result: evaluationResult });
+      }
+      setBatchResults(results);
+      if (results.length > 0) {
+        setResult(results[0].result);
+      }
+    } catch (error) {
+      console.error('Batch evaluation error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleNewEvaluation = () => {
     setResult(null);
+    setBatchResults([]);
+    setIsBatchMode(false);
+  };
+
+  const handleSelectResult = (selectedResult: EvaluationResult) => {
+    setResult(selectedResult);
   };
 
   return (
@@ -38,9 +74,13 @@ function App() {
                 <p className="text-sm text-gray-500">输入您的短视频文案，获取智能评估报告</p>
               </div>
               
-              <CopyInputForm onSubmit={handleSubmit} isLoading={isLoading} />
+              <CopyInputForm 
+                onSubmit={handleSubmit} 
+                onBatchSubmit={handleBatchSubmit} 
+                isLoading={isLoading} 
+              />
               
-              {result && (
+              {(result || batchResults.length > 0) && (
                 <button
                   onClick={handleNewEvaluation}
                   className="w-full mt-4 py-3 border-2 border-primary-500 text-primary-600 font-medium rounded-xl hover:bg-primary-50 transition-all"
@@ -52,7 +92,9 @@ function App() {
           </div>
 
           <div className="lg:col-span-2">
-            {result ? (
+            {batchResults.length > 0 ? (
+              <BatchResultList results={batchResults} onSelectResult={handleSelectResult} />
+            ) : result ? (
               <ReportDashboard result={result} />
             ) : (
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 text-center">
