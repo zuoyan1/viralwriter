@@ -112,3 +112,13 @@ export interface CategoryOption {
   id: string;
   name: string;
 }
+
+export interface HistoryItem {
+  id: string;
+  content: string;
+  platform: string;
+  category: string;
+  score: number;
+  createdAt: string;
+  result: EvaluationResult;
+}
