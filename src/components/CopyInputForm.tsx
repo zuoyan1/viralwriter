@@ -4,39 +4,97 @@ import type { VideoCopyInput } from '../types';
 
 interface Props {
   onSubmit: (data: VideoCopyInput) => void;
+  onBatchSubmit: (items: VideoCopyInput[]) => void;
   isLoading: boolean;
 }
 
-export function CopyInputForm({ onSubmit, isLoading }: Props) {
+export function CopyInputForm({ onSubmit, onBatchSubmit, isLoading }: Props) {
   const [content, setContent] = useState('');
   const [platform, setPlatform] = useState('douyin');
   const [category, setCategory] = useState('entertainment');
   const [targetAudience, setTargetAudience] = useState('all');
+  const [mode, setMode] = useState<'single' | 'batch'>('single');
 
   const handleSubmit = () => {
     if (!content.trim()) return;
-    onSubmit({ content, platform, category, targetAudience });
+    
+    if (mode === 'batch') {
+      const lines = content.split('\n').filter(line => line.trim());
+      if (lines.length === 0) return;
+      const items: VideoCopyInput[] = lines.map(line => ({
+        content: line.trim(),
+        platform,
+        category,
+        targetAudience
+      }));
+      onBatchSubmit(items);
+    } else {
+      onSubmit({ content, platform, category, targetAudience });
+    }
   };
 
   const handleUseSample = () => {
-    setContent(sampleCopy);
+    if (mode === 'batch') {
+      setContent(`今天给大家分享一个超级实用的小技巧\n姐妹们挖到宝了，这个真的绝绝子\n没想到最后结局竟然是这样的\n家人们一定要试试这个方法`);
+    } else {
+      setContent(sampleCopy);
+    }
+  };
+
+  const getLineCount = () => {
+    return content.split('\n').filter(line => line.trim()).length;
   };
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-gray-700">评估模式</span>
+        <div className="flex bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setMode('single')}
+            className={`px-4 py-1.5 text-sm rounded-md transition-all ${
+              mode === 'single'
+                ? 'bg-white text-primary-600 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            单条评估
+          </button>
+          <button
+            onClick={() => setMode('batch')}
+            className={`px-4 py-1.5 text-sm rounded-md transition-all ${
+              mode === 'batch'
+                ? 'bg-white text-primary-600 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            批量评估
+          </button>
+        </div>
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           文案内容 <span className="text-red-500">*</span>
+          {mode === 'batch' && (
+            <span className="text-gray-400 font-normal ml-2">(每行一条文案)</span>
+          )}
         </label>
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="请输入您的短视频文案内容..."
+          placeholder={mode === 'batch' 
+            ? '请每行输入一条文案...\n例如：\n今天给大家分享一个小技巧\n姐妹们挖到宝了\n没想到结局竟然是这样' 
+            : '请输入您的短视频文案内容...'}
           className="w-full h-48 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none transition-all"
           disabled={isLoading}
         />
         <div className="flex items-center justify-between mt-2">
-          <span className="text-xs text-gray-400">{content.length} 字</span>
+          <span className="text-xs text-gray-400">
+            {mode === 'batch' 
+              ? `${getLineCount()} 条文案` 
+              : `${content.length} 字`}
+          </span>
           <button
             type="button"
             onClick={handleUseSample}
