@@ -477,3 +477,181 @@ function getRating(score: number): string {
   if (score >= 40) return '较差';
   return '极差';
 }
+
+export interface PolishOptions {
+  style: 'casual' | 'funny' | 'professional' | 'emotional';
+  platform: string;
+  category: string;
+  optimizeHook: boolean;
+  optimizeEnding: boolean;
+  addInteraction: boolean;
+  replaceFormal: boolean;
+}
+
+export interface PolishResult {
+  original: string;
+  polished: string;
+  changes: {
+    type: 'add' | 'remove' | 'replace';
+    original: string;
+    new: string;
+  }[];
+}
+
+export async function polishContent(
+  content: string,
+  options: PolishOptions
+): Promise<PolishResult> {
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  let polished = content;
+  const changes: PolishResult['changes'] = [];
+
+  if (options.replaceFormal) {
+    const formalToCasual = [
+      { from: /综上所述/g, to: "所以你看" },
+      { from: /笔者认为/g, to: "我觉得" },
+      { from: /因此/g, to: "所以" },
+      { from: /此外/g, to: "还有" },
+      { from: /然而/g, to: "但是" },
+      { from: /众所周知/g, to: "大家都知道" },
+      { from: /不难看出/g, to: "你看出来了吗" },
+      { from: /首先/g, to: "先" },
+      { from: /其次/g, to: "然后" },
+      { from: /最后/g, to: "最后哈" },
+      { from: /但是/g, to: "不过" },
+      { from: /并且/g, to: "而且" },
+      { from: /或者/g, to: "要不" },
+      { from: /由于/g, to: "因为" },
+      { from: /虽然/g, to: "虽说" },
+      { from: /即使/g, to: "就算" },
+    ];
+    
+    formalToCasual.forEach(({ from, to }) => {
+      if (polished.match(from)) {
+        changes.push({ type: 'replace', original: from.source, new: to });
+        polished = polished.replace(from, to);
+      }
+    });
+  }
+
+  if (options.optimizeHook) {
+    const hasHook = polished.startsWith("家人们") || 
+                   polished.startsWith("你知道") || 
+                   polished.startsWith("姐妹们") ||
+                   polished.startsWith("老铁们") ||
+                   polished.startsWith("朋友们");
+    
+    if (!hasHook) {
+      let hook = "";
+      const platformMap: Record<string, string[]> = {
+        douyin: ["家人们谁懂啊！", "你知道吗？", "没想到！", "揭秘！"],
+        kuaishou: ["老铁们！", "家人们！", "今天给大家分享！"],
+        xiaohongshu: ["姐妹们！", "我发现了一个惊天秘密！", "宝藏分享！"],
+        bilibili: ["家人们！", "我不允许还有人不知道！", "震惊！"],
+        video号: ["朋友们！", "今天这个视频一定要看完！", "家人们好！"]
+      };
+      
+      const hooks = platformMap[options.platform] || platformMap.douyin;
+      hook = hooks[Math.floor(Math.random() * hooks.length)];
+      
+      changes.push({ type: 'add', original: "", new: hook });
+      polished = hook + polished;
+    }
+  }
+
+  if (options.optimizeEnding) {
+    const endsWithPunctuation = polished.endsWith("！") || 
+                               polished.endsWith("？") || 
+                               polished.endsWith("。");
+    
+    if (!endsWithPunctuation) {
+      polished = polished + "。";
+    }
+    
+    const hasEnding = polished.includes("关注") || 
+                     polished.includes("点赞") || 
+                     polished.includes("评论") || 
+                     polished.includes("收藏");
+    
+    if (!hasEnding) {
+      let ending = "";
+      switch (options.style) {
+        case "funny":
+          ending = "！笑不活了😂";
+          break;
+        case "emotional":
+          ending = "！希望能帮到你❤️";
+          break;
+        case "professional":
+          ending = "。如果对你有帮助，记得点赞收藏！";
+          break;
+        default:
+          ending = "！你觉得呢？";
+      }
+      changes.push({ type: 'add', original: "", new: ending });
+      polished = polished + ending;
+    }
+  }
+
+  if (options.addInteraction) {
+    const hasInteraction = polished.includes("评论") || 
+                          polished.includes("你觉得") || 
+                          polished.includes("告诉我") ||
+                          polished.includes("留言");
+    
+    if (!hasInteraction) {
+      const interactions = [
+        " 评论区告诉我你的想法！",
+        " 你觉得怎么样？",
+        " 有没有同款？",
+        " 留下你的看法！",
+        " 关注我，下期更精彩！"
+      ];
+      const interaction = interactions[Math.floor(Math.random() * interactions.length)];
+      changes.push({ type: 'add', original: "", new: interaction });
+      polished = polished + interaction;
+    }
+  }
+
+  const styleTransforms: Record<string, { from: RegExp; to: string }[]> = {
+    funny: [
+      { from: /。/g, to: "！" },
+    ],
+    emotional: [],
+    professional: [
+      { from: /！/g, to: "。" },
+    ],
+    casual: []
+  };
+  
+  styleTransforms[options.style]?.forEach(({ from, to }) => {
+    if (polished.match(from)) {
+      polished = polished.replace(from, to);
+    }
+  });
+
+  const platformEmojis: Record<string, string[]> = {
+    douyin: ['🔥', '👀', '💯', '✨', '👍'],
+    kuaishou: ['😂', '👍', '❤️', '💪'],
+    xiaohongshu: ['✨', '💕', '🌸', '👀', '💗'],
+    bilibili: ['哈哈哈', '233', '妙啊'],
+    video号: ['❤️', '👍', '🌹', '加油']
+  };
+  
+  const hasEmoji = /[\u{1F300}-\u{1F9FF}]/u.test(polished);
+  if (!hasEmoji && polished.length > 10) {
+    const emojis = platformEmojis[options.platform] || ['✨'];
+    const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+    if (!polished.includes(emoji)) {
+      changes.push({ type: 'add', original: "", new: emoji });
+      polished = polished + ' ' + emoji;
+    }
+  }
+
+  return {
+    original: content,
+    polished,
+    changes
+  };
+}
