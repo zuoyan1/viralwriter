@@ -498,6 +498,52 @@ export interface PolishResult {
   }[];
 }
 
+export interface PolishConfig {
+  style: 'casual' | 'funny' | 'professional' | 'emotional';
+  platform: string;
+  category: string;
+  intensity: 'light' | 'medium' | 'deep';
+  preserveMeaning: boolean;
+  customPrompt?: string;
+}
+
+export interface PolishVersion {
+  id: string;
+  timestamp: number;
+  content: string;
+  config: PolishConfig;
+  changes: {
+    type: 'add' | 'remove' | 'replace';
+    original: string;
+    new: string;
+    reason: string;
+  }[];
+}
+
+const STYLE_CONFIGS = {
+  casual: { name: '口语化', prompt: '用通俗易懂的口语表达，像和朋友聊天一样' },
+  funny: { name: '搞笑娱乐', prompt: '加入网络热梗和夸张表达，让文案更有趣' },
+  professional: { name: '专业严谨', prompt: '逻辑清晰，用词准确，适合知识科普和职场内容' },
+  emotional: { name: '情感共鸣', prompt: '加入情感化表达，引发观众的情感共鸣' }
+};
+
+const PLATFORM_CONFIGS: Record<string, string> = {
+  '抖音': '节奏快，开头要有强钩子，多用感叹号和emoji',
+  '小红书': '种草风格，多用"姐妹们"、"谁懂啊"、"绝绝子"',
+  '视频号': '风格稳重，适合中老年和泛人群',
+  'B站': '二次元风格，加入弹幕梗和互动元素',
+  'douyin': '节奏快，开头要有强钩子，多用感叹号和emoji',
+  'xiaohongshu': '种草风格，多用"姐妹们"、"谁懂啊"、"绝绝子"',
+  'bilibili': '二次元风格，加入弹幕梗和互动元素',
+  'video号': '风格稳重，适合中老年和泛人群'
+};
+
+const INTENSITY_CONFIGS = {
+  light: '只修正语法错误和不通顺的地方，尽量保留原文',
+  medium: '优化表达，增加少量互动元素，不改变原文结构',
+  deep: '全面重构，优化结构和节奏，提升整体效果'
+};
+
 export async function polishContent(
   content: string,
   options: PolishOptions
@@ -652,6 +698,127 @@ export async function polishContent(
   return {
     original: content,
     polished,
+    changes
+  };
+}
+
+export async function advancedPolishContent(
+  content: string,
+  config: PolishConfig
+): Promise<PolishVersion> {
+  await new Promise(resolve => setTimeout(resolve, 2500));
+
+  let polished = content;
+  const changes: PolishVersion['changes'] = [];
+
+  if (config.intensity === 'light') {
+    if (!polished.endsWith('！') && !polished.endsWith('？') && !polished.endsWith('。')) {
+      changes.push({
+        type: 'add',
+        original: '',
+        new: '。',
+        reason: '补充结尾标点，使句子完整'
+      });
+      polished = polished + '。';
+    }
+  }
+
+  if (config.intensity === 'medium' || config.intensity === 'deep') {
+    const replacements = [
+      { from: /综上所述/g, to: '所以你看', reason: '替换书面语为口语，更适合短视频' },
+      { from: /笔者认为/g, to: '我觉得', reason: '第一人称表达，更有亲和力' },
+      { from: /因此/g, to: '所以', reason: '简化表达，加快节奏' },
+      { from: /此外/g, to: '还有', reason: '口语化表达' },
+      { from: /然而/g, to: '但是', reason: '简化表达' },
+      { from: /众所周知/g, to: '大家都知道', reason: '口语化表达' },
+      { from: /不难看出/g, to: '你看出来了吗', reason: '增加互动感' }
+    ];
+
+    replacements.forEach(({ from, to, reason }) => {
+      if (polished.match(from)) {
+        changes.push({ type: 'replace', original: from.source, new: to, reason });
+        polished = polished.replace(from, to);
+      }
+    });
+  }
+
+  if (config.intensity === 'deep') {
+    const hasHook = polished.startsWith('家人们') || 
+                   polished.startsWith('姐妹们') ||
+                   polished.startsWith('老铁们') ||
+                   polished.startsWith('朋友们');
+    
+    if (!hasHook) {
+      let hook = '';
+      const platformName = PLATFORM_CONFIGS[config.platform] ? config.platform : '抖音';
+      
+      if (platformName === '小红书' || platformName === 'xiaohongshu') {
+        hook = '姐妹们！';
+      } else if (platformName === 'B站' || platformName === 'bilibili') {
+        hook = '家人们！';
+      } else if (platformName === '视频号' || platformName === 'video号') {
+        hook = '朋友们！';
+      } else {
+        hook = '家人们谁懂啊！';
+      }
+      
+      changes.push({
+        type: 'add',
+        original: '',
+        new: hook,
+        reason: '添加平台专属开头钩子，吸引观众注意力'
+      });
+      polished = hook + polished;
+    }
+
+    const hasEnding = polished.includes('评论') || 
+                     polished.includes('关注') || 
+                     polished.includes('点赞') || 
+                     polished.includes('收藏');
+    
+    if (!hasEnding) {
+      const endings = [
+        ' 评论区告诉我你的想法！',
+        ' 你觉得怎么样？',
+        ' 关注我，下期更精彩！',
+        ' 记得点赞收藏哦！'
+      ];
+      const ending = endings[Math.floor(Math.random() * endings.length)];
+      changes.push({
+        type: 'add',
+        original: '',
+        new: ending,
+        reason: '添加互动引导，提升评论量'
+      });
+      polished = polished + ending;
+    }
+  }
+
+  if (config.intensity !== 'light') {
+    const styleEndings: Record<string, string> = {
+      funny: '😂',
+      emotional: '❤️',
+      professional: '',
+      casual: '✨'
+    };
+    
+    const emoji = styleEndings[config.style];
+    if (emoji && !polished.includes(emoji)) {
+      changes.push({
+        type: 'add',
+        original: '',
+        new: ' ' + emoji,
+        reason: '添加表情符号，增强视觉吸引力'
+      });
+      polished = polished + ' ' + emoji;
+    }
+  }
+
+  return {
+    id: Date.now().toString(),
+    timestamp: Date.now(),
+    content: polished,
+    config,
     changes
   };
 }

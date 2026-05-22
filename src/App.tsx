@@ -4,7 +4,7 @@ import { CopyInputForm } from './components/CopyInputForm';
 import { ReportDashboard } from './components/ReportDashboard';
 import { BatchResultList } from './components/BatchResultList';
 import { HistoryPanel } from './components/HistoryPanel';
-import { evaluateCopy, polishContent, type PolishOptions, type PolishResult } from './api/evaluation';
+import { evaluateCopy, polishContent, advancedPolishContent, type PolishOptions, type PolishResult, type PolishConfig, type PolishVersion } from './api/evaluation';
 import type { EvaluationResult, VideoCopyInput, HistoryItem } from './types';
 
 interface BatchResult {
@@ -98,6 +98,19 @@ function App() {
     }
   };
 
+  const handleAdvancedPolish = async (content: string, config: PolishConfig) => {
+    setIsPolishing(true);
+    try {
+      const result = await advancedPolishContent(content, config);
+      return result;
+    } catch (error) {
+      console.error('Advanced Polish error:', error);
+      throw error;
+    } finally {
+      setIsPolishing(false);
+    }
+  };
+
   const handleApplyPolish = (polishedContent: string) => {
     setPolishResult(null);
     setResult(null);
@@ -125,6 +138,7 @@ function App() {
                 onSubmit={handleSubmit}
                 onBatchSubmit={handleBatchSubmit}
                 onPolish={handlePolish}
+                onAdvancedPolish={handleAdvancedPolish}
                 isLoading={isLoading}
                 isPolishing={isPolishing}
                 onApplyPolish={handleApplyPolish}
