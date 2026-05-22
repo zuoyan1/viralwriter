@@ -4,7 +4,7 @@ import { CopyInputForm } from './components/CopyInputForm';
 import { ReportDashboard } from './components/ReportDashboard';
 import { BatchResultList } from './components/BatchResultList';
 import { HistoryPanel } from './components/HistoryPanel';
-import { evaluateCopy, polishContent, advancedPolishContent, type PolishOptions, type PolishResult, type PolishConfig, type PolishVersion } from './api/evaluation';
+import { evaluateCopy } from './api/evaluation';
 import type { EvaluationResult, VideoCopyInput, HistoryItem } from './types';
 
 interface BatchResult {
@@ -16,15 +16,10 @@ function App() {
   const [result, setResult] = useState<EvaluationResult | null>(null);
   const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isBatchMode, setIsBatchMode] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  
-  const [isPolishing, setIsPolishing] = useState(false);
-  const [polishResult, setPolishResult] = useState<PolishResult | null>(null);
 
   const handleSubmit = async (data: VideoCopyInput) => {
     setIsLoading(true);
-    setIsBatchMode(false);
     try {
       const evaluationResult = await evaluateCopy(data);
       setResult(evaluationResult);
@@ -48,7 +43,6 @@ function App() {
 
   const handleBatchSubmit = async (items: VideoCopyInput[]) => {
     setIsLoading(true);
-    setIsBatchMode(true);
     try {
       const results: BatchResult[] = [];
       for (const item of items) {
@@ -69,13 +63,11 @@ function App() {
   const handleNewEvaluation = () => {
     setResult(null);
     setBatchResults([]);
-    setIsBatchMode(false);
   };
 
   const handleSelectHistory = (item: HistoryItem) => {
     setResult(item.result);
     setBatchResults([]);
-    setIsBatchMode(false);
   };
 
   const handleDeleteHistory = (id: string) => {
@@ -84,41 +76,6 @@ function App() {
 
   const handleSelectResult = (selectedResult: EvaluationResult) => {
     setResult(selectedResult);
-  };
-
-  const handlePolish = async (content: string, options: PolishOptions) => {
-    setIsPolishing(true);
-    try {
-      const result = await polishContent(content, options);
-      setPolishResult(result);
-    } catch (error) {
-      console.error('Polish error:', error);
-    } finally {
-      setIsPolishing(false);
-    }
-  };
-
-  const handleAdvancedPolish = async (content: string, config: PolishConfig) => {
-    setIsPolishing(true);
-    try {
-      const result = await advancedPolishContent(content, config);
-      return result;
-    } catch (error) {
-      console.error('Advanced Polish error:', error);
-      throw error;
-    } finally {
-      setIsPolishing(false);
-    }
-  };
-
-  const handleApplyPolish = (polishedContent: string) => {
-    setPolishResult(null);
-    setResult(null);
-    setBatchResults([]);
-  };
-
-  const handleClosePolish = () => {
-    setPolishResult(null);
   };
 
   return (
@@ -137,13 +94,7 @@ function App() {
               <CopyInputForm
                 onSubmit={handleSubmit}
                 onBatchSubmit={handleBatchSubmit}
-                onPolish={handlePolish}
-                onAdvancedPolish={handleAdvancedPolish}
                 isLoading={isLoading}
-                isPolishing={isPolishing}
-                onApplyPolish={handleApplyPolish}
-                onClosePolish={handleClosePolish}
-                polishResult={polishResult}
               />
 
               {(result || batchResults.length > 0) && (

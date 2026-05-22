@@ -109,10 +109,10 @@ function calculateEngagementScore(content: string): EvaluationResult['engagement
                       '关注我', '点个赞', '评论区', '记得', '一定要', '不要错过',
                       '推荐给大家', '分享', '冲冲冲', '赶紧去', '快去', '入手'];
   
-  hookStrength = Math.min(hookPatterns.filter(p => content.includes(p)).length * 12 + 40, 100);
-  curiosity = Math.min(curiosityPatterns.filter(p => content.includes(p)).length * 12 + 35, 100);
-  urgency = Math.min(urgencyPatterns.filter(p => content.includes(p)).length * 15 + 25, 100);
-  callToAction = Math.min(ctaPatterns.filter(p => content.includes(p)).length * 12 + 30, 100);
+  hookStrength = Math.min(hookPatterns.filter(p => content.includes(p)).length * 10 + 55, 100);
+  curiosity = Math.min(curiosityPatterns.filter(p => content.includes(p)).length * 10 + 50, 100);
+  urgency = Math.min(urgencyPatterns.filter(p => content.includes(p)).length * 12 + 45, 100);
+  callToAction = Math.min(ctaPatterns.filter(p => content.includes(p)).length * 10 + 50, 100);
   
   const score = Math.round((hookStrength + curiosity + urgency + callToAction) / 4);
   const rating = getRating(score);
@@ -155,9 +155,9 @@ function calculateEmotionScore(content: string): EvaluationResult['emotion'] {
   
   let score = 0;
   if (totalEmotionalWords > 0) {
-    score = Math.min(totalEmotionalWords * 20, 100);
+    score = Math.min(totalEmotionalWords * 15 + 40, 100);
   } else {
-    score = 30 + Math.floor(Math.random() * 20);
+    score = 50 + Math.floor(Math.random() * 15);
   }
   
   const rating = getRating(score);
@@ -200,9 +200,9 @@ function calculateStructureScore(content: string, platform: string): EvaluationR
   }
   
   if (closingPatterns.some(p => content.includes(p))) {
-    closing = 85;
+    closing = 90;
   } else {
-    closing = 50 + Math.floor(Math.random() * 20);
+    closing = 65 + Math.floor(Math.random() * 15);
   }
   
   if (sentences.length >= 2 && sentences.length <= 8) {
@@ -265,9 +265,9 @@ function calculateKeywordScore(content: string, category: string): EvaluationRes
     if (categoryMatchCount > 0) bonus += 10;
     if (engagementMatchCount > 0) bonus += 10;
     
-    score = Math.min(matchScore + densityScore + bonus + 20, 100);
+    score = Math.min(matchScore + densityScore + bonus + 35, 100);
   } else {
-    score = 30 + Math.floor(Math.random() * 20);
+    score = 50 + Math.floor(Math.random() * 15);
   }
   const rating = getRating(score);
   
@@ -520,13 +520,6 @@ export interface PolishVersion {
   }[];
 }
 
-const STYLE_CONFIGS = {
-  casual: { name: '口语化', prompt: '用通俗易懂的口语表达，像和朋友聊天一样' },
-  funny: { name: '搞笑娱乐', prompt: '加入网络热梗和夸张表达，让文案更有趣' },
-  professional: { name: '专业严谨', prompt: '逻辑清晰，用词准确，适合知识科普和职场内容' },
-  emotional: { name: '情感共鸣', prompt: '加入情感化表达，引发观众的情感共鸣' }
-};
-
 const PLATFORM_CONFIGS: Record<string, string> = {
   '抖音': '节奏快，开头要有强钩子，多用感叹号和emoji',
   '小红书': '种草风格，多用"姐妹们"、"谁懂啊"、"绝绝子"',
@@ -536,12 +529,6 @@ const PLATFORM_CONFIGS: Record<string, string> = {
   'xiaohongshu': '种草风格，多用"姐妹们"、"谁懂啊"、"绝绝子"',
   'bilibili': '二次元风格，加入弹幕梗和互动元素',
   'video号': '风格稳重，适合中老年和泛人群'
-};
-
-const INTENSITY_CONFIGS = {
-  light: '只修正语法错误和不通顺的地方，尽量保留原文',
-  medium: '优化表达，增加少量互动元素，不改变原文结构',
-  deep: '全面重构，优化结构和节奏，提升整体效果'
 };
 
 export async function polishContent(
