@@ -477,3 +477,348 @@ function getRating(score: number): string {
   if (score >= 40) return '较差';
   return '极差';
 }
+
+export interface PolishOptions {
+  style: 'casual' | 'funny' | 'professional' | 'emotional';
+  platform: string;
+  category: string;
+  optimizeHook: boolean;
+  optimizeEnding: boolean;
+  addInteraction: boolean;
+  replaceFormal: boolean;
+}
+
+export interface PolishResult {
+  original: string;
+  polished: string;
+  changes: {
+    type: 'add' | 'remove' | 'replace';
+    original: string;
+    new: string;
+  }[];
+}
+
+export interface PolishConfig {
+  style: 'casual' | 'funny' | 'professional' | 'emotional';
+  platform: string;
+  category: string;
+  intensity: 'light' | 'medium' | 'deep';
+  preserveMeaning: boolean;
+  customPrompt?: string;
+}
+
+export interface PolishVersion {
+  id: string;
+  timestamp: number;
+  content: string;
+  config: PolishConfig;
+  changes: {
+    type: 'add' | 'remove' | 'replace';
+    original: string;
+    new: string;
+    reason: string;
+  }[];
+}
+
+const STYLE_CONFIGS = {
+  casual: { name: '口语化', prompt: '用通俗易懂的口语表达，像和朋友聊天一样' },
+  funny: { name: '搞笑娱乐', prompt: '加入网络热梗和夸张表达，让文案更有趣' },
+  professional: { name: '专业严谨', prompt: '逻辑清晰，用词准确，适合知识科普和职场内容' },
+  emotional: { name: '情感共鸣', prompt: '加入情感化表达，引发观众的情感共鸣' }
+};
+
+const PLATFORM_CONFIGS: Record<string, string> = {
+  '抖音': '节奏快，开头要有强钩子，多用感叹号和emoji',
+  '小红书': '种草风格，多用"姐妹们"、"谁懂啊"、"绝绝子"',
+  '视频号': '风格稳重，适合中老年和泛人群',
+  'B站': '二次元风格，加入弹幕梗和互动元素',
+  'douyin': '节奏快，开头要有强钩子，多用感叹号和emoji',
+  'xiaohongshu': '种草风格，多用"姐妹们"、"谁懂啊"、"绝绝子"',
+  'bilibili': '二次元风格，加入弹幕梗和互动元素',
+  'video号': '风格稳重，适合中老年和泛人群'
+};
+
+const INTENSITY_CONFIGS = {
+  light: '只修正语法错误和不通顺的地方，尽量保留原文',
+  medium: '优化表达，增加少量互动元素，不改变原文结构',
+  deep: '全面重构，优化结构和节奏，提升整体效果'
+};
+
+export async function polishContent(
+  content: string,
+  options: PolishOptions
+): Promise<PolishResult> {
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  let polished = content;
+  const changes: PolishResult['changes'] = [];
+
+  if (options.replaceFormal) {
+    const formalToCasual = [
+      { from: /综上所述/g, to: "所以你看" },
+      { from: /笔者认为/g, to: "我觉得" },
+      { from: /因此/g, to: "所以" },
+      { from: /此外/g, to: "还有" },
+      { from: /然而/g, to: "但是" },
+      { from: /众所周知/g, to: "大家都知道" },
+      { from: /不难看出/g, to: "你看出来了吗" },
+      { from: /首先/g, to: "先" },
+      { from: /其次/g, to: "然后" },
+      { from: /最后/g, to: "最后哈" },
+      { from: /但是/g, to: "不过" },
+      { from: /并且/g, to: "而且" },
+      { from: /或者/g, to: "要不" },
+      { from: /由于/g, to: "因为" },
+      { from: /虽然/g, to: "虽说" },
+      { from: /即使/g, to: "就算" },
+    ];
+    
+    formalToCasual.forEach(({ from, to }) => {
+      if (polished.match(from)) {
+        changes.push({ type: 'replace', original: from.source, new: to });
+        polished = polished.replace(from, to);
+      }
+    });
+  }
+
+  if (options.optimizeHook) {
+    const hasHook = polished.startsWith("家人们") || 
+                   polished.startsWith("你知道") || 
+                   polished.startsWith("姐妹们") ||
+                   polished.startsWith("老铁们") ||
+                   polished.startsWith("朋友们");
+    
+    if (!hasHook) {
+      let hook = "";
+      const platformMap: Record<string, string[]> = {
+        douyin: ["家人们谁懂啊！", "你知道吗？", "没想到！", "揭秘！"],
+        kuaishou: ["老铁们！", "家人们！", "今天给大家分享！"],
+        xiaohongshu: ["姐妹们！", "我发现了一个惊天秘密！", "宝藏分享！"],
+        bilibili: ["家人们！", "我不允许还有人不知道！", "震惊！"],
+        video号: ["朋友们！", "今天这个视频一定要看完！", "家人们好！"]
+      };
+      
+      const hooks = platformMap[options.platform] || platformMap.douyin;
+      hook = hooks[Math.floor(Math.random() * hooks.length)];
+      
+      changes.push({ type: 'add', original: "", new: hook });
+      polished = hook + polished;
+    }
+  }
+
+  if (options.optimizeEnding) {
+    const endsWithPunctuation = polished.endsWith("！") || 
+                               polished.endsWith("？") || 
+                               polished.endsWith("。");
+    
+    if (!endsWithPunctuation) {
+      polished = polished + "。";
+    }
+    
+    const hasEnding = polished.includes("关注") || 
+                     polished.includes("点赞") || 
+                     polished.includes("评论") || 
+                     polished.includes("收藏");
+    
+    if (!hasEnding) {
+      let ending = "";
+      switch (options.style) {
+        case "funny":
+          ending = "！笑不活了😂";
+          break;
+        case "emotional":
+          ending = "！希望能帮到你❤️";
+          break;
+        case "professional":
+          ending = "。如果对你有帮助，记得点赞收藏！";
+          break;
+        default:
+          ending = "！你觉得呢？";
+      }
+      changes.push({ type: 'add', original: "", new: ending });
+      polished = polished + ending;
+    }
+  }
+
+  if (options.addInteraction) {
+    const hasInteraction = polished.includes("评论") || 
+                          polished.includes("你觉得") || 
+                          polished.includes("告诉我") ||
+                          polished.includes("留言");
+    
+    if (!hasInteraction) {
+      const interactions = [
+        " 评论区告诉我你的想法！",
+        " 你觉得怎么样？",
+        " 有没有同款？",
+        " 留下你的看法！",
+        " 关注我，下期更精彩！"
+      ];
+      const interaction = interactions[Math.floor(Math.random() * interactions.length)];
+      changes.push({ type: 'add', original: "", new: interaction });
+      polished = polished + interaction;
+    }
+  }
+
+  const styleTransforms: Record<string, { from: RegExp; to: string }[]> = {
+    funny: [
+      { from: /。/g, to: "！" },
+    ],
+    emotional: [],
+    professional: [
+      { from: /！/g, to: "。" },
+    ],
+    casual: []
+  };
+  
+  styleTransforms[options.style]?.forEach(({ from, to }) => {
+    if (polished.match(from)) {
+      polished = polished.replace(from, to);
+    }
+  });
+
+  const platformEmojis: Record<string, string[]> = {
+    douyin: ['🔥', '👀', '💯', '✨', '👍'],
+    kuaishou: ['😂', '👍', '❤️', '💪'],
+    xiaohongshu: ['✨', '💕', '🌸', '👀', '💗'],
+    bilibili: ['哈哈哈', '233', '妙啊'],
+    video号: ['❤️', '👍', '🌹', '加油']
+  };
+  
+  const hasEmoji = /[\u{1F300}-\u{1F9FF}]/u.test(polished);
+  if (!hasEmoji && polished.length > 10) {
+    const emojis = platformEmojis[options.platform] || ['✨'];
+    const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+    if (!polished.includes(emoji)) {
+      changes.push({ type: 'add', original: "", new: emoji });
+      polished = polished + ' ' + emoji;
+    }
+  }
+
+  return {
+    original: content,
+    polished,
+    changes
+  };
+}
+
+export async function advancedPolishContent(
+  content: string,
+  config: PolishConfig
+): Promise<PolishVersion> {
+  await new Promise(resolve => setTimeout(resolve, 2500));
+
+  let polished = content;
+  const changes: PolishVersion['changes'] = [];
+
+  if (config.intensity === 'light') {
+    if (!polished.endsWith('！') && !polished.endsWith('？') && !polished.endsWith('。')) {
+      changes.push({
+        type: 'add',
+        original: '',
+        new: '。',
+        reason: '补充结尾标点，使句子完整'
+      });
+      polished = polished + '。';
+    }
+  }
+
+  if (config.intensity === 'medium' || config.intensity === 'deep') {
+    const replacements = [
+      { from: /综上所述/g, to: '所以你看', reason: '替换书面语为口语，更适合短视频' },
+      { from: /笔者认为/g, to: '我觉得', reason: '第一人称表达，更有亲和力' },
+      { from: /因此/g, to: '所以', reason: '简化表达，加快节奏' },
+      { from: /此外/g, to: '还有', reason: '口语化表达' },
+      { from: /然而/g, to: '但是', reason: '简化表达' },
+      { from: /众所周知/g, to: '大家都知道', reason: '口语化表达' },
+      { from: /不难看出/g, to: '你看出来了吗', reason: '增加互动感' }
+    ];
+
+    replacements.forEach(({ from, to, reason }) => {
+      if (polished.match(from)) {
+        changes.push({ type: 'replace', original: from.source, new: to, reason });
+        polished = polished.replace(from, to);
+      }
+    });
+  }
+
+  if (config.intensity === 'deep') {
+    const hasHook = polished.startsWith('家人们') || 
+                   polished.startsWith('姐妹们') ||
+                   polished.startsWith('老铁们') ||
+                   polished.startsWith('朋友们');
+    
+    if (!hasHook) {
+      let hook = '';
+      const platformName = PLATFORM_CONFIGS[config.platform] ? config.platform : '抖音';
+      
+      if (platformName === '小红书' || platformName === 'xiaohongshu') {
+        hook = '姐妹们！';
+      } else if (platformName === 'B站' || platformName === 'bilibili') {
+        hook = '家人们！';
+      } else if (platformName === '视频号' || platformName === 'video号') {
+        hook = '朋友们！';
+      } else {
+        hook = '家人们谁懂啊！';
+      }
+      
+      changes.push({
+        type: 'add',
+        original: '',
+        new: hook,
+        reason: '添加平台专属开头钩子，吸引观众注意力'
+      });
+      polished = hook + polished;
+    }
+
+    const hasEnding = polished.includes('评论') || 
+                     polished.includes('关注') || 
+                     polished.includes('点赞') || 
+                     polished.includes('收藏');
+    
+    if (!hasEnding) {
+      const endings = [
+        ' 评论区告诉我你的想法！',
+        ' 你觉得怎么样？',
+        ' 关注我，下期更精彩！',
+        ' 记得点赞收藏哦！'
+      ];
+      const ending = endings[Math.floor(Math.random() * endings.length)];
+      changes.push({
+        type: 'add',
+        original: '',
+        new: ending,
+        reason: '添加互动引导，提升评论量'
+      });
+      polished = polished + ending;
+    }
+  }
+
+  if (config.intensity !== 'light') {
+    const styleEndings: Record<string, string> = {
+      funny: '😂',
+      emotional: '❤️',
+      professional: '',
+      casual: '✨'
+    };
+    
+    const emoji = styleEndings[config.style];
+    if (emoji && !polished.includes(emoji)) {
+      changes.push({
+        type: 'add',
+        original: '',
+        new: ' ' + emoji,
+        reason: '添加表情符号，增强视觉吸引力'
+      });
+      polished = polished + ' ' + emoji;
+    }
+  }
+
+  return {
+    id: Date.now().toString(),
+    timestamp: Date.now(),
+    content: polished,
+    config,
+    changes
+  };
+}
