@@ -30,7 +30,10 @@ export function HistoryPanel({ history, onSelect, onDelete }: HistoryPanelProps)
 
   return (
     <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 mt-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4">评估历史</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-bold text-gray-900">评估历史</h3>
+        <span className="text-xs text-gray-500">已保存 {history.length} 条记录</span>
+      </div>
       {history.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
           <p>暂无评估历史记录</p>
