@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model EvaluationHistory {
+  id          String   @id @default(cuid())
+  content     String
+  platform    String
+  category    String
+  overallScore    Float
+  result      String   // Store JSON as string
+  createdAt   DateTime @default(now())
+
+  @@map("evaluation_history")
+}
+
+model PolishHistory {
+  id           String   @id @default(cuid())
+  original     String
+  polished     String
+  style        String
+  platform     String
+  category     String
+  changes      String   // Store JSON as string
+  createdAt    DateTime @default(now())
+
+  @@map("polish_history")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  createdAt DateTime @default(now())
+}

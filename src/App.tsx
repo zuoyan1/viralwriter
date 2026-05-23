@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { CopyInputForm } from './components/CopyInputForm';
 import { ReportDashboard } from './components/ReportDashboard';
 import { BatchResultList } from './components/BatchResultList';
 import { HistoryPanel } from './components/HistoryPanel';
 import { evaluateCopy, polishContent, advancedPolishContent, type PolishOptions, type PolishResult, type PolishConfig, type PolishVersion } from './api/evaluation';
+import { apiService } from './api/apiService';
 import type { EvaluationResult, VideoCopyInput, HistoryItem } from './types';
 
 interface BatchResult {
@@ -18,9 +19,33 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [isUsingBackend, setIsUsingBackend] = useState(false);
   
   const [isPolishing, setIsPolishing] = useState(false);
   const [polishResult, setPolishResult] = useState<PolishResult | null>(null);
+
+  // Load history on mount
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const { evaluations } = await apiService.getEvaluations(1, 20);
+        const historyItems: HistoryItem[] = evaluations.map((ev) => ({
+          id: ev.id,
+          content: ev.content,
+          platform: ev.platform,
+          category: ev.category,
+          score: ev.overallScore,
+          createdAt: ev.createdAt,
+          result: ev.result,
+        }));
+        setHistory(historyItems);
+        setIsUsingBackend(apiService.isUsingBackend());
+      } catch (error) {
+        console.error('Failed to load history:', error);
+      }
+    };
+    loadHistory();
+  }, []);
 
   const handleSubmit = async (data: VideoCopyInput) => {
     setIsLoading(true);
@@ -29,16 +54,27 @@ function App() {
       const evaluationResult = await evaluateCopy(data);
       setResult(evaluationResult);
       setBatchResults([]);
+      
+      // Save to backend or localStorage
+      const savedRecord = await apiService.saveEvaluation(
+        data.content,
+        data.platform,
+        data.category,
+        evaluationResult.overallScore,
+        evaluationResult
+      );
+      
       const newHistoryItem: HistoryItem = {
-        id: Date.now().toString(),
+        id: savedRecord.id,
         content: data.content,
         platform: data.platform,
         category: data.category,
         score: evaluationResult.overallScore,
-        createdAt: new Date().toISOString(),
+        createdAt: savedRecord.createdAt,
         result: evaluationResult,
       };
       setHistory(prev => [newHistoryItem, ...prev]);
+      setIsUsingBackend(apiService.isUsingBackend());
     } catch (error) {
       console.error('Evaluation error:', error);
     } finally {
@@ -51,14 +87,40 @@ function App() {
     setIsBatchMode(true);
     try {
       const results: BatchResult[] = [];
+      const newHistoryItems: HistoryItem[] = [];
+      
       for (const item of items) {
         const evaluationResult = await evaluateCopy(item);
         results.push({ input: item, result: evaluationResult });
+        
+        // Save each evaluation to backend or localStorage
+        const savedRecord = await apiService.saveEvaluation(
+          item.content,
+          item.platform,
+          item.category,
+          evaluationResult.overallScore,
+          evaluationResult
+        );
+        
+        newHistoryItems.push({
+          id: savedRecord.id,
+          content: item.content,
+          platform: item.platform,
+          category: item.category,
+          score: evaluationResult.overallScore,
+          createdAt: savedRecord.createdAt,
+          result: evaluationResult,
+        });
       }
+      
       setBatchResults(results);
       if (results.length > 0) {
         setResult(results[0].result);
       }
+      
+      // Add all batch items to history
+      setHistory(prev => [...newHistoryItems, ...prev]);
+      setIsUsingBackend(apiService.isUsingBackend());
     } catch (error) {
       console.error('Batch evaluation error:', error);
     } finally {
@@ -78,8 +140,15 @@ function App() {
     setIsBatchMode(false);
   };
 
-  const handleDeleteHistory = (id: string) => {
-    setHistory(prev => prev.filter(item => item.id !== id));
+  const handleDeleteHistory = async (id: string) => {
+    try {
+      await apiService.deleteEvaluation(id);
+      setHistory(prev => prev.filter(item => item.id !== id));
+    } catch (error) {
+      console.error('Failed to delete history:', error);
+      // Still remove from local state even if backend delete fails
+      setHistory(prev => prev.filter(item => item.id !== id));
+    }
   };
 
   const handleSelectResult = (selectedResult: EvaluationResult) => {
