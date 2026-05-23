@@ -29,6 +29,7 @@ model PolishHistory {
   changes      String   // Store JSON as string
   createdAt    DateTime @default(now())
 
+  @@index([createdAt])
   @@map("polish_history")
 }
 

@@ -6,10 +6,11 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 
 export const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // 允许没有origin的请求（如Postman本地测试）或在白名单中的origin
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(null, false);
     }
   },
   credentials: true,
