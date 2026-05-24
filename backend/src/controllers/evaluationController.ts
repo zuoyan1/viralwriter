@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { success } from '../utils/response';
 import { EvaluationService } from '../services/evaluationService';
 import Joi from 'joi';
+import { AuthRequest } from '../middlewares/auth.middleware';
 
 const evaluationService = new EvaluationService();
 
@@ -24,7 +25,7 @@ const polishSchema = Joi.object({
 });
 
 export const saveEvaluationHistory = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
@@ -34,7 +35,8 @@ export const saveEvaluationHistory = async (
       return res.status(400).json(success(null, validationError.message));
     }
 
-    const evaluation = await evaluationService.createEvaluationHistory(value);
+    const userId = req.userId;
+    const evaluation = await evaluationService.createEvaluationHistory(value, userId);
     res.json(success(evaluation, '保存成功'));
   } catch (error) {
     next(error);
@@ -42,15 +44,16 @@ export const saveEvaluationHistory = async (
 };
 
 export const getEvaluationHistory = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
+    const userId = req.userId || null;
 
-    const result = await evaluationService.getEvaluationHistory(page, limit);
+    const result = await evaluationService.getEvaluationHistory(page, limit, userId);
     res.json(success(result, '获取成功'));
   } catch (error) {
     next(error);
@@ -58,12 +61,15 @@ export const getEvaluationHistory = async (
 };
 
 export const deleteEvaluationHistory = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    await evaluationService.deleteEvaluationHistory(req.params.id);
+    const userId = req.userId;
+    const evaluationId = req.params.id;
+
+    await evaluationService.deleteEvaluationHistory(evaluationId, userId);
     res.json(success(null, '删除成功'));
   } catch (error) {
     next(error);
@@ -71,7 +77,7 @@ export const deleteEvaluationHistory = async (
 };
 
 export const savePolishHistory = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
@@ -81,9 +87,10 @@ export const savePolishHistory = async (
       return res.status(400).json(success(null, validationError.message));
     }
 
+    const userId = req.userId;
     const { original, polished, style, platform, category, changes } = value;
     const polishHistory = await evaluationService.createPolishHistory(
-      original, polished, style, platform, category, changes
+      original, polished, style, platform, category, changes, userId
     );
     res.json(success(polishHistory, '保存成功'));
   } catch (error) {
@@ -92,15 +99,16 @@ export const savePolishHistory = async (
 };
 
 export const getPolishHistory = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
+    const userId = req.userId || null;
 
-    const result = await evaluationService.getPolishHistory(page, limit);
+    const result = await evaluationService.getPolishHistory(page, limit, userId);
     res.json(success(result, '获取成功'));
   } catch (error) {
     next(error);

@@ -6,14 +6,15 @@ import {
   savePolishHistory,
   getPolishHistory,
 } from '../controllers/evaluationController';
+import { authMiddleware, optionalAuthMiddleware } from '../middlewares/auth.middleware';
 
 const router = express.Router();
 
-router.post('/history', saveEvaluationHistory);
-router.get('/history', getEvaluationHistory);
-router.delete('/history/:id', deleteEvaluationHistory);
+router.post('/history', authMiddleware, saveEvaluationHistory);
+router.get('/history', optionalAuthMiddleware, getEvaluationHistory);
+router.delete('/history/:id', authMiddleware, deleteEvaluationHistory);
 
-router.post('/polish', savePolishHistory);
-router.get('/polish', getPolishHistory);
+router.post('/polish', authMiddleware, savePolishHistory);
+router.get('/polish', optionalAuthMiddleware, getPolishHistory);
 
 export default router;

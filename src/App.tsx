@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Header } from './components/Header';
 import { CopyInputForm } from './components/CopyInputForm';
 import { ReportDashboard } from './components/ReportDashboard';
 import { BatchResultList } from './components/BatchResultList';
 import { HistoryPanel } from './components/HistoryPanel';
-import { evaluateCopy } from './api/evaluation';
+import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider } from './context/AuthContext';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import { evaluateCopy, advancedPolishContent } from './api/evaluation';
 import { apiService } from './api/apiService';
 import type { EvaluationResult, VideoCopyInput, HistoryItem } from './types';
+import type { PolishConfig, PolishVersion } from './api/evaluation';
 
 interface BatchResult {
   input: VideoCopyInput;
@@ -14,13 +20,36 @@ interface BatchResult {
 }
 
 function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <MainLayout />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
+
+function MainLayout() {
   const [result, setResult] = useState<EvaluationResult | null>(null);
   const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [isPolishing, setIsPolishing] = useState(false);
+  const [polishVersions, setPolishVersions] = useState<PolishVersion[]>([]);
   const [isUsingBackend, setIsUsingBackend] = useState(false);
 
-  // Load history on mount
   useEffect(() => {
     const loadHistory = async () => {
       try {
@@ -49,8 +78,7 @@ function App() {
       const evaluationResult = await evaluateCopy(data);
       setResult(evaluationResult);
       setBatchResults([]);
-      
-      // Save to backend or localStorage
+
       const savedRecord = await apiService.saveEvaluation(
         data.content,
         data.platform,
@@ -58,7 +86,7 @@ function App() {
         evaluationResult.overallScore,
         evaluationResult
       );
-      
+
       const newHistoryItem: HistoryItem = {
         id: savedRecord.id,
         content: data.content,
@@ -82,12 +110,11 @@ function App() {
     try {
       const results: BatchResult[] = [];
       const newHistoryItems: HistoryItem[] = [];
-      
+
       for (const item of items) {
         const evaluationResult = await evaluateCopy(item);
         results.push({ input: item, result: evaluationResult });
-        
-        // Save each evaluation to backend or localStorage
+
         const savedRecord = await apiService.saveEvaluation(
           item.content,
           item.platform,
@@ -95,7 +122,7 @@ function App() {
           evaluationResult.overallScore,
           evaluationResult
         );
-        
+
         newHistoryItems.push({
           id: savedRecord.id,
           content: item.content,
@@ -106,13 +133,12 @@ function App() {
           result: evaluationResult,
         });
       }
-      
+
       setBatchResults(results);
       if (results.length > 0) {
         setResult(results[0].result);
       }
-      
-      // Add all batch items to history
+
       setHistory(prev => [...newHistoryItems, ...prev]);
       setIsUsingBackend(apiService.isUsingBackend());
     } catch (error) {
@@ -138,13 +164,37 @@ function App() {
       setHistory(prev => prev.filter(item => item.id !== id));
     } catch (error) {
       console.error('Failed to delete history:', error);
-      // Still remove from local state even if backend delete fails
       setHistory(prev => prev.filter(item => item.id !== id));
     }
   };
 
   const handleSelectResult = (selectedResult: EvaluationResult) => {
     setResult(selectedResult);
+  };
+
+  const handleAdvancedPolish = async (content: string, config: PolishConfig) => {
+    setIsPolishing(true);
+    try {
+      const result = await advancedPolishContent(content, config);
+      setPolishVersions(prev => {
+        const newVersions = [result, ...prev].slice(0, 3);
+        return newVersions;
+      });
+      return result;
+    } catch (error) {
+      console.error('Advanced Polish error:', error);
+      throw error;
+    } finally {
+      setIsPolishing(false);
+    }
+  };
+
+  const handleRollbackVersion = (version: PolishVersion) => {
+    setPolishVersions(prev => prev.filter(v => v.id !== version.id));
+  };
+
+  const handleClosePolish = () => {
+    setPolishVersions([]);
   };
 
   return (
@@ -163,7 +213,12 @@ function App() {
               <CopyInputForm
                 onSubmit={handleSubmit}
                 onBatchSubmit={handleBatchSubmit}
+                onAdvancedPolish={handleAdvancedPolish}
                 isLoading={isLoading}
+                isPolishing={isPolishing}
+                onClosePolish={handleClosePolish}
+                polishVersions={polishVersions}
+                onRollbackVersion={handleRollbackVersion}
               />
 
               {(result || batchResults.length > 0) && (
