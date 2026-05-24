@@ -7,6 +7,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  password  String   // 密码字段，加密存储
+  createdAt DateTime @default(now())
+
+  evaluations EvaluationHistory[]
+  polishes    PolishHistory[]
+
+  @@map("user")
+}
+
 model EvaluationHistory {
   id          String   @id @default(cuid())
   content     String
@@ -15,6 +28,8 @@ model EvaluationHistory {
   overallScore    Float
   result      String   // Store JSON as string
   createdAt   DateTime @default(now())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
 
   @@map("evaluation_history")
 }
@@ -28,14 +43,9 @@ model PolishHistory {
   category     String
   changes      String   // Store JSON as string
   createdAt    DateTime @default(now())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
 
   @@index([createdAt])
   @@map("polish_history")
-}
-
-model User {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String   @unique
-  createdAt DateTime @default(now())
 }

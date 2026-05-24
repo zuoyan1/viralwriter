@@ -5,6 +5,7 @@ import { errorHandler } from './middlewares/errorHandler';
 import { apiRateLimiter } from './middlewares/rateLimiter';
 import healthRoutes from './routes/healthRoutes';
 import evaluationRoutes from './routes/evaluationRoutes';
+import authRoutes from './routes/authRoutes';
 import prisma from './utils/prisma';
 import { error } from './utils/response';
 
@@ -19,6 +20,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/api', apiRateLimiter);
 
 app.use('/health', healthRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/evaluation', evaluationRoutes);
 
 // 404处理 - 必须在所有路由之后
